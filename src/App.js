@@ -1388,8 +1388,8 @@ function App() {
         setSelectedTemplate(selectedTemplateName);
     };
 
-    const exportHtml = () => {
-        emailEditorRef.current?.editor?.exportHtml((data) => {
+    const exportHtml = (e) => {
+        emailEditorRef.current?.editor?.exportHtml(async (data) => {
             const { html } = data;
 
             // export as HTML file as downloadable to root folder called email-template
@@ -1402,6 +1402,35 @@ function App() {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        });
+    };
+
+    const sendEmail = (e) => {
+        emailEditorRef.current?.editor?.exportHtml(async (data) => {
+            const { html } = data;
+
+            try {
+                e.preventDefault();
+
+                const response = await fetch('https://v2mxedqm7c.execute-api.ap-southeast-1.amazonaws.com/email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        html
+                    }),
+                });
+
+                if (response.status === 429) {
+                    const { error } = await response.json();
+                    console.log(error)
+                    alert(error);
+                }
+            } catch (e) {
+                alert('Something went wrong. Please try again.');
+            } finally {
+                console.log('finish');
+            }
+
         });
     };
 
@@ -1512,15 +1541,38 @@ function App() {
         setSelectedTemplate(null);
     };
 
-    const saveTemplate = () => {
+    const saveTemplate = (e) => {
         // get template name
         const templateName = selectedTemplate;
 
         // save design to local storage
-        emailEditorRef.current?.editor?.saveDesign((design) => {
+        emailEditorRef.current?.editor?.saveDesign(async (design) => {
             localStorage.setItem(templateName, JSON.stringify(design));
             toast.success('Design saved');
+            try {
+                e.preventDefault();
+
+                const response = await fetch('https://v2mxedqm7c.execute-api.ap-southeast-1.amazonaws.com/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: templateName,
+                        data: design
+                    }),
+                });
+
+                if (response.status === 429) {
+                    const { error } = await response.json();
+                    console.log(error)
+                    alert(error);
+                }
+            } catch (e) {
+                alert('Something went wrong. Please try again.');
+            } finally {
+                console.log('finish');
+            }
         });
+
     };
 
     // detect if user is not using app, save design straight away
@@ -1584,6 +1636,10 @@ function App() {
                         
                         <button onClick={exportDesign} type="button" className="px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border-t border-b border-l border-gray-900 hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
                             Export Design
+                        </button>
+
+                        <button onClick={sendEmail} type="button" className="px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border-t border-b border-l border-gray-900 hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
+                            Send Email
                         </button>
 
                         <button onClick={exportHtml} type="button" className="px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border border-gray-900 rounded-r-md hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
