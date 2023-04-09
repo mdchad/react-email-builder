@@ -11,7 +11,6 @@ function App() {
     const [templates, setTemplates] = useState([]);
     const [allTemplates, setAllTemplates] = useState([]);
     const [selectedTemplate, setSelectedTemplate] = useState(null);
-    const [triggerAutoSave, setTriggerAutoSave] = useState(false);
 
     useEffect(() => {
         // find savedTemplates and log the values - for dropdown
@@ -28,7 +27,9 @@ function App() {
             });
 
             const data = await response.json()
+            console.log(data)
             setAllTemplates(data)
+
             if (response.status === 429) {
                 const { error } = await response.json();
                 console.log(error)
@@ -40,29 +41,6 @@ function App() {
             console.log('get all templates');
         }
     }
-
-    useEffect(() => {
-        if (triggerAutoSave) {
-            // save every 1 minute
-            const interval = setInterval(() => {
-                emailEditorRef.current?.editor?.saveDesign((design) => {
-                    localStorage.setItem(`${selectedTemplate}`, JSON.stringify(design));
-                    // show toast on the right
-                    toast.success('Saved!', {
-                        position: 'top-right',
-                        autoClose: 2000,
-                        hideProgressBar: false,
-                        closeOnClick: true,
-                        pauseOnHover: true,
-                        draggable: true,
-                        progress: undefined,
-                    });
-                });
-            }, 60000);
-
-            return () => clearInterval(interval);
-        }
-    }, [triggerAutoSave, selectedTemplate]);
 
     const selectTemplate = (event) => {
         const selectedTemplateName = event.target.value;
@@ -184,10 +162,8 @@ function App() {
         if (templateName) {
             const template = localStorage.getItem(templateName);
             emailEditorRef.current?.editor?.loadDesign(JSON.parse(template));
-            setTriggerAutoSave(true);
         } else {
             emailEditorRef.current?.editor?.loadDesign(sample);
-            setTriggerAutoSave(false);
         }
     };
 
@@ -229,10 +205,14 @@ function App() {
         // save design to local storage
         emailEditorRef.current?.editor?.saveDesign( (design) => {
             localStorage.setItem(templateName, JSON.stringify(design));
-            toast.success('Design saved');
         });
-
     };
+
+    // detec if design is updated
+    emailEditorRef.current?.editor?.addEventListener('design:updated', () => {
+        // trigger save
+        saveTemplate()
+    });
 
     async function saveTemplateToDatabase(e) {
         emailEditorRef.current?.editor?.saveDesign(async (design) => {
@@ -260,25 +240,6 @@ function App() {
             }
         })
     }
-
-    // detect if user is not using app, save design straight away
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (document.hidden) {
-                // save design to local storage
-                emailEditorRef.current?.editor?.saveDesign((design) => {
-                    localStorage.setItem(selectedTemplate, JSON.stringify(design));
-                    toast.success('Design saved');
-                });
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange, false);
-
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
-    }, [selectedTemplate]);
 
     return (
         <div className="App bg-black text-slate-12 font-sans">
