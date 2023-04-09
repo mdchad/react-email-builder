@@ -15,8 +15,9 @@ function App() {
     useEffect(() => {
         // find savedTemplates and log the values - for dropdown
         const savedTemplates = Object.keys(localStorage).filter(key => key.endsWith('.json'));
-        fetchData()
         setTemplates(savedTemplates);
+        
+        fetchData()
     }, []);
 
     async function fetchData() {
@@ -98,11 +99,6 @@ function App() {
             emailEditorRef.current?.editor?.hidePreview();
             setPreview(false);
         } else {
-            // save design first
-            emailEditorRef.current?.editor?.saveDesign((design) => {
-                localStorage.setItem(`${selectedTemplate}`, JSON.stringify(design));
-            });
-
             emailEditorRef.current?.editor?.showPreview('desktop');
             setPreview(true);
         }
@@ -204,8 +200,12 @@ function App() {
 
         // save design to local storage
         emailEditorRef.current?.editor?.saveDesign( (design) => {
-            localStorage.setItem(templateName, JSON.stringify(design));
+            if (design) {
+                localStorage.setItem(templateName, JSON.stringify(design));
+                // toast.success('Design saved to local storage');
+            }
         });
+
     };
 
     // detec if design is updated
@@ -308,6 +308,12 @@ function App() {
                         options={{
                             appearance: {
                                 theme: "dark",
+                                panels: {
+                                    tools: {
+                                        dock: "right",
+                                        hidden: false,
+                                    },
+                                },
                             },
                             features: {
                                 textEditor: {
