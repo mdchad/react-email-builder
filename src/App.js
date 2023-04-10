@@ -154,10 +154,11 @@ function App() {
 
     const onReady = () => {
         const templateName = selectedTemplate;
+        console.log('oi', templateName)
 
         if (templateName) {
-            const template = localStorage.getItem(templateName);
-            emailEditorRef.current?.editor?.loadDesign(JSON.parse(template));
+            const onLoadTemplate = allTemplates.find(template => template.name === templateName)
+            emailEditorRef.current?.editor?.loadDesign(JSON.parse(onLoadTemplate.data));
         } else {
             emailEditorRef.current?.editor?.loadDesign(sample);
         }
@@ -252,8 +253,8 @@ function App() {
                         <label htmlFor="small" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Template</label>
                         <select onChange={selectTemplate} id="select-design" name="select-design" className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
                             <option selected disabled>Choose...</option>
-                            {templates.map((template) => (
-                                <option key={template} defaultValue={template}>{template}</option>
+                            {allTemplates.map((template) => (
+                                <option key={template.templateId} defaultValue={template.name}>{template.name}</option>
                             ))}
                         </select>
                         <button onClick={deleteTemplate} type="button" className="ml-2 px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border border-gray-900 rounded-lg hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
