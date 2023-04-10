@@ -13,6 +13,27 @@ function App() {
     const [selectedTemplate, setSelectedTemplate] = useState(null);
 
     useEffect(() => {
+        const handleBeforeUnload = (event) => {
+            event.preventDefault();
+            event.returnValue = 'Are you sure you want to leave?';
+        };
+
+        const handleUnload = (event) => {
+            if (event.returnValue === '') {
+                console.log('User canceled the prompt and decided to stay on the page.');
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('unload', handleUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('unload', handleUnload);
+        };
+    }, []);
+
+    useEffect(() => {
         // find savedTemplates and log the values - for dropdown
         const savedTemplates = Object.keys(localStorage).filter(key => key.endsWith('.json'));
         setTemplates(savedTemplates);
@@ -44,8 +65,9 @@ function App() {
     }
 
     const selectTemplate = (event) => {
-        const selectedTemplateName = event.target.value;
-        setSelectedTemplate(selectedTemplateName);
+        const selectedTemplateId = event.target.value;
+        const getTemplate = allTemplates.find(template => template.templateId === selectedTemplateId)
+        setSelectedTemplate(getTemplate);
     };
 
     const exportHtml = (e) => {
@@ -124,52 +146,79 @@ function App() {
     const exportDesign = () => {
     }
 
-    const newTemplate = () => {
+    const newTemplate = async (e) => {
         // ask for template name
 
-        const name = prompt('Enter template name:', 'template.json');
+        let name = prompt('Enter template name:', 'template.json');
 
         if (!name) {
             return;
         }
 
         // update dropdown
-        const dropdown = document.getElementById('select-design');
-        const option = document.createElement('option');
-        option.value = name;
-        option.text = name;
-        dropdown.add(option, 0);
+        // const dropdown = document.getElementById('select-design');
+        // const option = document.createElement('option');
+        // option.value = name;
+        // option.text = name;
+        // dropdown.add(option, 0);
         // set dropdown value to new template
-        dropdown.value = name;
-
-        // set template name as key and value as empty object for design
-        localStorage.setItem(name, JSON.stringify(newTemplateDesign));
+        // dropdown.value = name;
 
         // load empty design
         emailEditorRef.current?.editor?.loadDesign(newTemplateDesign);
+
+        try {
+            e.preventDefault();
+
+            let getDuplicatedTemplateName = false
+            do {
+                getDuplicatedTemplateName = allTemplates.some(template => template.name === name)
+                if (!getDuplicatedTemplateName) {
+                    break
+                }
+
+                name = prompt('Please enter a different name:', name)
+                if (name === null) {
+                    return new Error('Can\'t have duplicated name')
+                }
+            } while (getDuplicatedTemplateName === true);
+
+
+            const response = await fetch(apiEndpoint, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: name,
+                    data: newTemplateDesign
+                }),
+            });
+
+            if (response.status === 429) {
+                const { error } = await response.json();
+                console.log(error)
+                alert(error);
+            }
+            await fetchData()
+            toast.success('Design saved to database');
+        } catch (e) {
+            alert('Something went wrong. Please try again.');
+        }
 
         // set selected template to new template
         setSelectedTemplate(name);
     };
 
     const onReady = () => {
-        const templateName = selectedTemplate;
-        console.log('oi', templateName)
-
-        if (templateName) {
-            const onLoadTemplate = allTemplates.find(template => template.name === templateName)
-            emailEditorRef.current?.editor?.loadDesign(JSON.parse(onLoadTemplate.data));
+        if (selectedTemplate) {
+            emailEditorRef.current?.editor?.loadDesign(JSON.parse(selectedTemplate.data));
         } else {
             emailEditorRef.current?.editor?.loadDesign(sample);
         }
     };
 
     const deleteTemplate = () => {
-        // get template name
-        const templateName = selectedTemplate;
-
         // ask if user wants to delete template
-        const confirmDelete = window.confirm(`Are you sure you want to delete ${templateName}?`);
+        const confirmDelete = window.confirm(`Are you sure you want to delete ${selectedTemplate.name}?`);
 
         if (!confirmDelete) {
             return;
@@ -179,14 +228,14 @@ function App() {
         const dropdown = document.getElementById('select-design');
         const options = dropdown.options;
         for (let i = 0; i < options.length; i++) {
-            if (options[i].value === templateName) {
+            if (options[i].value === selectedTemplate.templateId) {
                 dropdown.remove(i);
                 break;
             }
         }
 
         // remove template from local storage
-        localStorage.removeItem(templateName);
+        localStorage.removeItem(selectedTemplate.name);
 
         // load sample design
         emailEditorRef.current?.editor?.loadDesign(sample);
@@ -195,36 +244,36 @@ function App() {
         setSelectedTemplate(null);
     };
 
-    const saveTemplate = () => {
-        // get template name
-        const templateName = selectedTemplate;
-
-        // save design to local storage
-        emailEditorRef.current?.editor?.saveDesign( (design) => {
-            if (design) {
-                localStorage.setItem(templateName, JSON.stringify(design));
-                // toast.success('Design saved to local storage');
-            }
-        });
-
-    };
+    // const saveTemplate = () => {
+    //     // get template name
+    //     const templateName = selectedTemplate;
+    //
+    //     // save design to local storage
+    //     emailEditorRef.current?.editor?.saveDesign( (design) => {
+    //         if (design) {
+    //             localStorage.setItem(templateName, JSON.stringify(design));
+    //             // toast.success('Design saved to local storage');
+    //         }
+    //     });
+    // };
 
     // detec if design is updated
-    emailEditorRef.current?.editor?.addEventListener('design:updated', () => {
-        // trigger save
-        saveTemplate()
-    });
+    // emailEditorRef.current?.editor?.addEventListener('design:updated', () => {
+    //     // trigger save
+    //     saveTemplate()
+    // });
 
     async function saveTemplateToDatabase(e) {
         emailEditorRef.current?.editor?.saveDesign(async (design) => {
+            console.log('hey' ,selectedTemplate)
             try {
                 e.preventDefault();
-
                 const response = await fetch(apiEndpoint, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        name: selectedTemplate,
+                        templateId: selectedTemplate.templateId,
+                        name: selectedTemplate.name,
                         data: design
                     }),
                 });
@@ -235,6 +284,7 @@ function App() {
                     alert(error);
                 }
             } catch (e) {
+                console.log(e)
                 alert('Something went wrong. Please try again.');
             } finally {
                 toast.success('Design saved to databse');
@@ -254,14 +304,11 @@ function App() {
                         <select onChange={selectTemplate} id="select-design" name="select-design" className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
                             <option selected disabled>Choose...</option>
                             {allTemplates.map((template) => (
-                                <option key={template.templateId} defaultValue={template.name}>{template.name}</option>
+                                <option key={template.templateId} value={template.templateId}>{template.name}</option>
                             ))}
                         </select>
                         <button onClick={deleteTemplate} type="button" className="ml-2 px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border border-gray-900 rounded-lg hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
                             Delete Template
-                        </button>
-                        <button onClick={saveTemplate} type="button" className="ml-2 px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border border-gray-900 rounded-lg hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
-                            Save Template
                         </button>
                         <button onClick={saveTemplateToDatabase} type="button" className="ml-2 px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border border-gray-900 rounded-lg hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
                             Save To Database
@@ -298,7 +345,7 @@ function App() {
                         </button>
                     </div>
 
-                    <div className="text-white">{selectedTemplate ? "editing: " + selectedTemplate : 'No Template Selected'}</div>
+                    <div className="text-white">{selectedTemplate ? "editing: " + selectedTemplate.name : 'No Template Selected'}</div>
                 </aside>
 
                 <main>
