@@ -41,7 +41,7 @@ function App() {
         fetchData()
     }, []);
 
-    async function fetchData() {
+    async function fetchData(name = '', selectTemplate = false) {
         try {
             const response = await fetch(apiEndpoint, {
                 method: 'GET',
@@ -49,7 +49,9 @@ function App() {
             });
 
             const data = await response.json()
-            console.log(data)
+
+            const getNewTemplate = data.find(template => template.name === name)
+            setSelectedTemplate(getNewTemplate)
             setAllTemplates(data)
 
             if (response.status === 429) {
@@ -198,17 +200,16 @@ function App() {
                 console.log(error)
                 alert(error);
             }
-            await fetchData()
+
+            await fetchData(name, true)
             toast.success('Design saved to database');
         } catch (e) {
             alert('Something went wrong. Please try again.');
         }
-
-        // set selected template to new template
-        setSelectedTemplate(name);
     };
 
     const onReady = () => {
+        console.log(selectedTemplate)
         if (selectedTemplate) {
             emailEditorRef.current?.editor?.loadDesign(JSON.parse(selectedTemplate.data));
         } else {
