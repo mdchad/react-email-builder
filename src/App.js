@@ -2,7 +2,9 @@ import './App.css';
 import EmailEditor from 'react-email-editor';
 import { useEffect, useRef, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import {newTemplateDesign, sample} from "./sample";
+import { newTemplateDesign, sample } from "./sample";
+import { AiOutlineTablet, AiOutlineDesktop, AiOutlineMobile } from 'react-icons/ai';
+import { VscSave, VscTrash, VscDesktopDownload, VscRocket, VscFiles } from "react-icons/vsc";
 
 function App() {
     const apiEndpoint = "https://gdzavroudg.execute-api.ap-southeast-1.amazonaws.com/"
@@ -37,7 +39,7 @@ function App() {
         // find savedTemplates and log the values - for dropdown
         const savedTemplates = Object.keys(localStorage).filter(key => key.endsWith('.json'));
         setTemplates(savedTemplates);
-        
+
         fetchData()
     }, []);
 
@@ -60,7 +62,7 @@ function App() {
                 alert(error);
             }
         } catch (e) {
-            alert('Something went wrong. Please try again.');
+            console.log('e', e);
         } finally {
             console.log('get all templates');
         }
@@ -110,61 +112,34 @@ function App() {
                     alert(error);
                 }
             } catch (e) {
-                alert('Something went wrong. Please try again.');
+                console.log('e', e);
             } finally {
-                console.log('finish');
+                toast.success('Email sent successfully!');
             }
 
         });
     };
 
-    const togglePreview = () => {
-        if (preview) {
-            emailEditorRef.current?.editor?.hidePreview();
-            setPreview(false);
-        } else {
-            emailEditorRef.current?.editor?.showPreview('desktop');
-            setPreview(true);
-        }
+    const togglePreviewDesktop = () => {
+        // trigger preview for dekstop
+        emailEditorRef.current?.editor?.showPreview('desktop');
+    };
+    
+    const togglePreviewTablet = () => {
+        emailEditorRef.current?.editor?.showPreview('tablet');
     };
 
-    const importDesign = () => {
-        // import as JSON file
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.json';
-        fileInput.onchange = (e) => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.readAsText(file, 'UTF-8');
-            reader.onload = (readerEvent) => {
-                const content = readerEvent.target.result;
-                emailEditorRef.current?.editor?.loadDesign(JSON.parse(content));
-            };
-        }
-        fileInput.click();
+    const togglePreviewMobile = () => {
+        emailEditorRef.current?.editor?.showPreview('mobile');
     };
-
-    const exportDesign = () => {
-    }
 
     const newTemplate = async (e) => {
         // ask for template name
-
         let name = prompt('Enter template name:', 'template.json');
 
         if (!name) {
             return;
         }
-
-        // update dropdown
-        // const dropdown = document.getElementById('select-design');
-        // const option = document.createElement('option');
-        // option.value = name;
-        // option.text = name;
-        // dropdown.add(option, 0);
-        // set dropdown value to new template
-        // dropdown.value = name;
 
         // load empty design
         emailEditorRef.current?.editor?.loadDesign(newTemplateDesign);
@@ -188,7 +163,7 @@ function App() {
 
             const response = await fetch(apiEndpoint, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: name,
                     data: newTemplateDesign
@@ -202,14 +177,23 @@ function App() {
             }
 
             await fetchData(name, true)
+
+            // update dropdown
+            const dropdown = document.getElementById('select-design');
+            const option = document.createElement('option');
+            option.value = name;
+            option.text = name;
+            dropdown.add(option, 0);
+            // set dropdown value to new template
+            dropdown.value = name;
+
             toast.success('Design saved to database');
         } catch (e) {
-            alert('Something went wrong. Please try again.');
+            console.log('e', e);
         }
     };
 
     const onReady = () => {
-        console.log(selectedTemplate)
         if (selectedTemplate) {
             emailEditorRef.current?.editor?.loadDesign(JSON.parse(selectedTemplate.data));
         } else {
@@ -218,12 +202,15 @@ function App() {
     };
 
     const deleteTemplate = () => {
-        // ask if user wants to delete template
-        const confirmDelete = window.confirm(`Are you sure you want to delete ${selectedTemplate.name}?`);
+        const name = selectedTemplate ? selectedTemplate.name : null;
 
-        if (!confirmDelete) {
+        if (!name) {
             return;
         }
+        
+        // // ask if user wants to delete template
+        window.confirm(`Are you sure you want to delete ${selectedTemplate.name}?`);
+
 
         // remove template from dropdown
         const dropdown = document.getElementById('select-design');
@@ -266,12 +253,12 @@ function App() {
 
     async function saveTemplateToDatabase(e) {
         emailEditorRef.current?.editor?.saveDesign(async (design) => {
-            console.log('hey' ,selectedTemplate)
+            // console.log('hey', selectedTemplate)
             try {
                 e.preventDefault();
                 const response = await fetch(apiEndpoint, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         templateId: selectedTemplate.templateId,
                         name: selectedTemplate.name,
@@ -280,13 +267,13 @@ function App() {
                 });
 
                 if (response.status === 429) {
-                    const {error} = await response.json();
+                    const { error } = await response.json();
                     console.log(error)
                     alert(error);
                 }
             } catch (e) {
                 console.log(e)
-                alert('Something went wrong. Please try again.');
+                console.log('e', e);
             } finally {
                 toast.success('Design saved to databse');
             }
@@ -298,58 +285,59 @@ function App() {
             <Toaster />
 
             <div className="flex flex-col justify-between">
-                <aside className="py-6 px-3 flex gap-5 flex-col justify-center items-center">
+                <nav className="p-3 flex justify-between items-center gap-3 sticky">
+                    <div className='flex gap-3 items-center'>
+                        <div>
+                            <select onChange={selectTemplate} id="select-design" name="select-design" class="block flex-1 py-2.5 px-0 w-full text-sm text-gray-200 bg-transparent border-0 border-b-2 border-gray-200 appearance-none dark:text-gray-400 dark:border-gray-700 focus:outline-none focus:ring-0 focus:border-gray-200 peer">
+                                <option selected disabled>Select template</option>
+                                {allTemplates.map((template) => (
+                                    <option key={template.templateId} value={template.templateId}>{template.name}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                    <div className="flex flex-row w-1/2">
-                        <label htmlFor="small" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Template</label>
-                        <select onChange={selectTemplate} id="select-design" name="select-design" className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                            <option selected disabled>Choose...</option>
-                            {allTemplates.map((template) => (
-                                <option key={template.templateId} value={template.templateId}>{template.name}</option>
-                            ))}
-                        </select>
-                        <button onClick={deleteTemplate} type="button" className="ml-2 px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border border-gray-900 rounded-lg hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
-                            Delete Template
-                        </button>
-                        <button onClick={saveTemplateToDatabase} type="button" className="ml-2 px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border border-gray-900 rounded-lg hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
-                            Save To Database
-                        </button>
-                    </div>
-
-                    <div className="inline-flex rounded-md shadow-sm" role="group">
-                        <button onClick={togglePreview} type="button" className="px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border border-gray-900 rounded-l-lg hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
-                            {preview ? 'Hide' : 'Show'} Preview
+                        <button type="button" onClick={deleteTemplate} class="text-gray-900 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-lg text-[10px] px-4 py-2 text-center items-center dark:focus:ring-gray-500 flex gap-2">
+                            <VscTrash className="w-4 h-4" />
                         </button>
 
-                        {/* <button onClick={saveDesign} type="button" className="px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border-t border-b border-gray-900 hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
-                            Save Design
-                        </button> */}
-
-                        <button onClick={newTemplate} type="button" className="px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border-t border-b border-l border-gray-900 hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
-                            New Template
-                        </button>
-
-                        {/* <button onClick={importDesign} type="button" className="px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border-t border-b border-l border-gray-900 hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
-                            Import Design
-                        </button>
-
-                        <button onClick={exportDesign} type="button" className="px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border-t border-b border-l border-gray-900 hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
-                            Export Design
-                        </button> */}
-
-                        <button onClick={sendEmail} type="button" className="px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border-t border-b border-l border-gray-900 hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
-                            Send Email
-                        </button>
-
-                        <button onClick={exportHtml} type="button" className="px-4 py-2 text-sm font-medium text-gray-900 bg-transparent border border-gray-900 rounded-r-md hover:bg-gray-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-gray-500 focus:bg-gray-900 focus:text-white dark:border-white dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:bg-gray-700">
-                            Export HTML
+                        <button type="button" onClick={newTemplate} class="text-gray-900 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-lg text-[10px] px-4 py-2 text-center items-center dark:focus:ring-gray-500 flex gap-2">
+                            <VscFiles className="w-4 h-4" />
                         </button>
                     </div>
 
-                    <div className="text-white">{selectedTemplate ? "editing: " + selectedTemplate.name : 'No Template Selected'}</div>
-                </aside>
+                    <div className='flex gap-3'>
+                        <div class="inline-flex rounded-md shadow-sm justify-center" role="group">
+                            <button type="button" onClick={togglePreviewDesktop} class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-l-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-blue-500 dark:focus:text-white">
+                                <AiOutlineDesktop className="w-4 h-4 mr-2 fill-current" />
+                            </button>
 
-                <main>
+                            <button type="button" onClick={togglePreviewTablet} class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-900 bg-white border-t border-b border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-blue-500 dark:focus:text-white">
+                                <AiOutlineTablet className="w-4 h-4 mr-2 fill-current" />
+                            </button>
+
+                            <button type="button" onClick={togglePreviewMobile} class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-r-md hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-blue-500 dark:focus:text-white">
+                                <AiOutlineMobile className="w-4 h-4 mr-2 fill-current" />
+                            </button>
+                        </div>
+
+                        <button type="button" onClick={saveTemplateToDatabase} class="text-gray-900 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-lg text-[10px] px-4 py-2 text-center items-center dark:focus:ring-gray-500 flex gap-2">
+                            <VscSave className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <div className='flex gap-2'>
+                        <button type="button" onClick={exportHtml} class="text-gray-900 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-lg text-[10px] px-4 py-2 text-center items-center dark:focus:ring-gray-500 flex gap-2">
+                            <span className="hidden md:block">Download HTML</span>
+                            <VscDesktopDownload className="w-4 h-4" />
+                        </button>
+                        <button type="button" onClick={sendEmail} class="text-gray-900 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-lg text-[10px] px-4 py-2 text-center items-center dark:focus:ring-gray-500 flex gap-2">
+                            <span className="hidden md:block">Send Email</span>
+                            <VscRocket className="w-4 h-4" />
+                        </button>
+                    </div>
+                </nav>
+
+                <main className='flex h-full bg-black'>
                     <EmailEditor
                         ref={emailEditorRef}
                         onReady={onReady}
