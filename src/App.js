@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { newTemplateDesign, sample } from "./sample";
 import { AiOutlineTablet, AiOutlineDesktop, AiOutlineMobile } from 'react-icons/ai';
-import { VscSave, VscTrash, VscDesktopDownload, VscRocket, VscFiles } from "react-icons/vsc";
+import { VscSave, VscTrash, VscDesktopDownload, VscRocket, VscNewFile } from "react-icons/vsc";
 
 function App() {
     const apiEndpoint = "https://gdzavroudg.execute-api.ap-southeast-1.amazonaws.com/"
@@ -52,8 +52,10 @@ function App() {
 
             const data = await response.json()
 
-            const getNewTemplate = data.find(template => template.name === name)
-            setSelectedTemplate(getNewTemplate)
+            if (name) {
+                const getNewTemplate = data.find(template => template.name === name)
+                setSelectedTemplate(getNewTemplate)
+            }
             setAllTemplates(data)
 
             if (response.status === 429) {
@@ -201,7 +203,7 @@ function App() {
         }
     };
 
-    const deleteTemplate = () => {
+    const deleteTemplate = async () => {
         const name = selectedTemplate ? selectedTemplate.name : null;
 
         if (!name) {
@@ -212,18 +214,19 @@ function App() {
         window.confirm(`Are you sure you want to delete ${selectedTemplate.name}?`);
 
 
-        // remove template from dropdown
-        const dropdown = document.getElementById('select-design');
-        const options = dropdown.options;
-        for (let i = 0; i < options.length; i++) {
-            if (options[i].value === selectedTemplate.templateId) {
-                dropdown.remove(i);
-                break;
-            }
+        // remove template from local storage
+        const response = await fetch(`${apiEndpoint}/${selectedTemplate.templateId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.status === 429) {
+            const { error } = await response.json();
+            console.log(error)
+            alert(error);
         }
 
-        // remove template from local storage
-        localStorage.removeItem(selectedTemplate.name);
+        await fetchData()
 
         // load sample design
         emailEditorRef.current?.editor?.loadDesign(sample);
@@ -232,26 +235,10 @@ function App() {
         setSelectedTemplate(null);
     };
 
-    // const saveTemplate = () => {
-    //     // get template name
-    //     const templateName = selectedTemplate;
-    //
-    //     // save design to local storage
-    //     emailEditorRef.current?.editor?.saveDesign( (design) => {
-    //         if (design) {
-    //             localStorage.setItem(templateName, JSON.stringify(design));
-    //             // toast.success('Design saved to local storage');
-    //         }
-    //     });
-    // };
-
-    // detec if design is updated
-    // emailEditorRef.current?.editor?.addEventListener('design:updated', () => {
-    //     // trigger save
-    //     saveTemplate()
-    // });
-
     async function saveTemplateToDatabase(e) {
+        if (!selectedTemplate) {
+            return
+        }
         emailEditorRef.current?.editor?.saveDesign(async (design) => {
             // console.log('hey', selectedTemplate)
             try {
@@ -271,6 +258,8 @@ function App() {
                     console.log(error)
                     alert(error);
                 }
+
+                await fetchData()
             } catch (e) {
                 console.log(e)
                 console.log('e', e);
@@ -301,7 +290,7 @@ function App() {
                         </button>
 
                         <button type="button" onClick={newTemplate} class="text-gray-900 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-lg text-[10px] px-4 py-2 text-center items-center dark:focus:ring-gray-500 flex gap-2">
-                            <VscFiles className="w-4 h-4" />
+                            <VscNewFile className="w-4 h-4" />
                         </button>
                     </div>
 
