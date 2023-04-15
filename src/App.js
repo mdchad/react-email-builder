@@ -74,6 +74,9 @@ function App() {
         const selectedTemplateId = event.target.value;
         const getTemplate = allTemplates.find(template => template.templateId === selectedTemplateId)
         setSelectedTemplate(getTemplate);
+
+        // change page title to template name
+        document.title = 'Editing : ' + getTemplate.name;
     };
 
     const exportHtml = (e) => {
