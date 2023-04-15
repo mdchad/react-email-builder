@@ -236,6 +236,13 @@ function App() {
 
         // set selected template to null
         setSelectedTemplate(null);
+
+        // update dropdown
+        const dropdown = document.getElementById('select-design');
+        dropdown.remove(dropdown.selectedIndex);
+
+        // set dropdown value to first template
+        dropdown.value = dropdown.options[0].value;
     };
 
     async function saveTemplateToDatabase(e) {
