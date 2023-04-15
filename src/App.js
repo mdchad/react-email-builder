@@ -52,7 +52,7 @@ function App() {
 
             const data = await response.json()
 
-            if (name) {
+            if (name && selectTemplate) {
                 const getNewTemplate = data.find(template => template.name === name)
                 setSelectedTemplate(getNewTemplate)
             }
@@ -247,10 +247,11 @@ function App() {
 
     async function saveTemplateToDatabase(e) {
         if (!selectedTemplate) {
+            alert('Please create a template first');
             return
         }
+
         emailEditorRef.current?.editor?.saveDesign(async (design) => {
-            // console.log('hey', selectedTemplate)
             try {
                 e.preventDefault();
                 const response = await fetch(apiEndpoint, {
@@ -269,7 +270,7 @@ function App() {
                     alert(error);
                 }
 
-                await fetchData()
+                await fetchData(selectedTemplate.name ,true)
             } catch (e) {
                 console.log(e)
                 console.log('e', e);
